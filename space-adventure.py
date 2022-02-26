@@ -3,22 +3,22 @@ from random import randrange
 
 class Collidable:
 
-    def collide_with_point(self, point):
-        (px, py) = point
+    def collide_with_point(self, px, py):
         return self.x <= px and px <= self.x + self.width \
            and self.y <= py and py <= self.y + self.height
 
     
-    def collide_with_rect(self, rect):
-        p1 = (rect.x, rect.y)
-        p2 = (rect.x + rect.width, rect.y)
-        p3 = (rect.x, rect.y + rect.height)
-        p4 = (rect.x + rect.width, rect.y + rect.height)
-        for p in [p1, p2, p3, p4]:
-            if self.collide_with_point(p):
-                return True
-        return False
+    def collide_with_rect(self, rx, ry, rwidth, rheight):
+        pass
 
+    def collide_with_drawable(self, d):
+        return self.collide_with_point(d.x, d.y)
+
+    def drawCollisionData(self, obj, col):
+        pyxel.rectb(self.x, self.y, self.width, self.height, col)
+        pyxel.line(self.x, self.y, obj.x, obj.y, col)
+        pyxel.rect(obj.x-1, obj.y-1, 3, 3, col)
+        
 class Center:
 
     def center(self):
@@ -26,96 +26,90 @@ class Center:
         centery = self.y + self.height/2
         return (centerx, centery)
 
-class Blackhole(Collidable, Center):
+class Drawable:
+
+    def __init__(self, depth):
+        self.depth = depth
+
+    def update_frame(self):
+        pass
+
+    def update(self):
+        self.update_frame()
+        self.y = self.y + self.speed # Update position   
+
+    def draw(self):
+        pyxel.blt(self.x, self.y,                                        # (x, y) destination
+                  0,                                                     # numero image source
+                  self.framex * self.width, self.framey * self.height,   # (x, y) source
+                  self.width, self.height,                               # (largeur, hauteur) source et destination)
+                  0)                                                     # couleur transparente
+
+    def is_visible(self):
+        return self.y < pyxel.height
+
+class Blackhole(Collidable, Center, Drawable):
 
     def __init__(self):
-
-        self.width   = 40
+        self.depth   = 1
+        self.width   = 32
         self.height  = 32
         self.x       = randrange(0, pyxel.width - self.width)
         self.y       = 0  - self.height
-        self.speed   = 2
-        self.types   = randrange(0, 2)
-
-    def update(self):
-
-         if pyxel.frame_count % 1 == 0:
-                self.y = self.y + self.speed   
-
-    def draw(self):
-
-         pyxel.blt(self.x, self.y,                    # (x, y) destination
-                  0,                                  # numero image source
-                  self.types*self.width, 192,         # (x, y) source
-                  self.width, self.height,             # (largeur, hauteur) source et destination)
-                  0)                                 # couleur transparente
-
-    def is_visible(self):
-        return self.y < pyxel.height
-
+        self.speed   = randrange(2,6)
+        self.framex  = randrange(0, 6)
+        self.framey  = 6
    
-class Star:
+class Star(Drawable):
 
     def __init__(self):
-        self.width  = 16
-        self.height = 16
+        self.depth  = 0
+        self.width  = 8
+        self.height = 8
         self.x      = randrange(0, pyxel.width - self.width)
         self.y      = 0
-        self.speed  = randrange(2, 7)
-        self.types  = randrange(0, 13)
+        self.speed  = randrange(2, 5)
+        self.framex = randrange(0, 16)
+        self.framey = 22
 
-    def update(self):
-        if pyxel.frame_count % 1 == 0:
-                self.y = self.y + self.speed        
+class OtherObject(Drawable):
     
-    def draw(self):
-        pyxel.blt(self.x, self.y,          # (x, y) destination
-                  0,                       # numero image source
-                  self.types*self.width, 160,         # (x, y) source
-                  self.width, self.height, # (largeur, hauteur) source et destination
-                  0)                       # Couleur transparente
-
-    def is_visible(self):
-        return self.y < pyxel.height
-    
-class Planet(Collidable, Center):
-
-    def __init__ (self):
+   def __init__ (self):
         self.height = 16
         self.width  = 16
         self.x      = randrange(0, pyxel.width - self.width)
-        self.y      = - self.height
-        self.speed  = randrange(1, 3)
-        self.types  = randrange(0, 15)
+        self.y      = -self.height
+        self.speed  = randrange(1, 2)
+        self.framex = randrange(0, 6)
+        self.framey = 14
+
         
-
-    def update(self):
-         if pyxel.frame_count % 1 == 0:
-                self.y = self.y + self.speed
-
-    def draw(self):
-        pyxel.blt(self.x,self.y,           # (x, y) destination
-                  0,                       # numero image source
-                  self.types*self.width, 128,         # (x, y) source
-                  self.width, self.height, # (largeur, hauteur) source et destination
-                  0)                       # Couleur transparente
-        
-    def is_visible(self):
-        return self.y < pyxel.height
-
-        return False
     
-class Compression:
+class Planet(Collidable, Center, Drawable):
 
-    def __init__(self, x, y):
-        self.x      = x
-        self.y      = y
+    def __init__ (self):
+        self.depth  = 1
         self.height = 16
         self.width  = 16
-        self.framex = 0
-        self.framey = 112
+        self.x      = randrange(0, pyxel.width - self.width)
+        self.y      = -self.height
+        self.speed  = randrange(1, 5)
+        self.framex = randrange(0, 15)
+        self.framey = 8
+    
+class Implosion(Drawable, Center):
 
-    def update(self):
+    def __init__(self, blackhole):
+        self.depth  = 2
+        self.x      = blackhole.x
+        self.y      = blackhole.y
+        self.height = 16
+        self.width  = 16
+        self.speed  = blackhole.speed
+        self.framex = 0
+        self.framey = 7
+
+    def update_frame(self):
         if pyxel.frame_count % 5 == 0:
             if self.framex == 0:
                 self.framex = 1            
@@ -145,30 +139,27 @@ class Compression:
                 self.framex = 13
             elif self.framex == 13:
                 self.framex = 14
+            elif self.framex == 14:
+                self.framex = 15
             else:
-                self.framex = 15 # DONE
+                self.framex = 16 # DONE
 
     def is_done(self):
-        return self.framex == 15
+        return self.framex == 16
 
-    def draw(self):
-        pyxel.blt(self.x, self.y,          # (x, y) destination
-                  0,                       # numero image source
-                  self.framex*self.width, self.framey*self.height,# (x, y) source
-                  self.width, self.height, # (largeur, hauteur) source et destination)
-                  0)                       # couleur transparente
-         
-class Explosion:
+class PlanetExplosion(Drawable):
 
-    def __init__(self, x, y):
-        self.x      = x
-        self.y      = y
+    def __init__(self, planet):
+        self.depth  = 1
+        self.x      = planet.x
+        self.y      = planet.y
         self.height = 16
         self.width  = 16
+        self.speed  = planet.speed
         self.framex = 0
         self.framey = randrange (3, 6)
 
-    def update(self):
+    def update_frame(self):
         if pyxel.frame_count % 5 == 0:
             if self.framex == 0:
                 self.framex = 1            
@@ -189,18 +180,46 @@ class Explosion:
 
     def is_done(self):
         return self.framex == 8
-
-    def draw(self):
-        pyxel.blt(self.x, self.y,          # (x, y) destination
-                  0,                       # numero image source
-                  self.framex*self.width, self.framey*self.height,# (x, y) source
-                  self.width, self.height, # (largeur, hauteur) source et destination)
-                  0)                       # couleur transparente
-         
     
+class Life(Drawable):
+
+    def __init__(self):
+        self.depth  = 3
+        self.height = 16
+        self.width  = 32
+        self.x      = 0
+        self.y      = pyxel.height - self.height
+        self.speed  = 0
+        self.framex = 0
+        self.framey = 9
+        self.life   = 18
+        
+    def draw(self):
+        Drawable.draw(self)
+
+        x = self.x + 8
+        y = self.y + 6
+        w = self.life
+        h = 4
+        color = 11
+        pyxel.rect(x, y, w, h, color)
+
+    def dec(self):
+        self.life = max(0, self.life - 3)
+
+    def inc(self):
+        self.life = min(18, self.life + 3)
+
+    def die_immediatly(self):
+        self.life = 0
+
+    def is_dead(self):
+        return self.life == 0
+
 class Rocket(Collidable, Center):
 
     def __init__(self):
+        self.depth  = 2
         self.width  = 16
         self.height = 16
         self.x      = (pyxel.width / 2) - (self.width / 2)
@@ -244,13 +263,11 @@ class Rocket(Collidable, Center):
                 self.framex = 3
 
     def draw(self):
-        pyxel.blt(self.x, self.y,         # (x, y) destination
-                  0,                      # numero image source
+        pyxel.blt(self.x, self.y,                                     # (x, y) destination
+                  0,                                                  # numero image source
                   self.framex * self.width,self.framey * self.height, # (x, y) source
-                  self.width, self.height,                 # (largeur, hauteur) source et destination
-                  0)                      # Couleur transparente
-        if False:
-            pyxel.text(0, 0, f"y = {self.y} y+10 = {self.y+10} y-10 = {self.y-10}", 1)
+                  self.width, self.height,                            # (largeur, hauteur) source et destination
+                  0)                                                  # Couleur transparente
             
 class SpaceAdventure:
     
@@ -258,134 +275,183 @@ class SpaceAdventure:
         pyxel.init(160, 120, caption="Space-Adventure.py", fps=30)
         pyxel.load("space-adventure.pyxres")
 
-        self.blackholes   = []
-        self.stars        = []
-        self.planets      = []
-        self.rocket       = Rocket()
-        self.explosion    = None
-        self.is_game_over = False
+        self.blackholes          = []
+        self.stars               = []
+        self.planets             = []
+        self.rocket              = Rocket()
+        self.life                = Life()
+        self.planet_explosions   = []
+        self.implosion           = None
+
+        # Drawables sorted by depth:
+        # [0] Stars
+        # [1] Blackholes, planets, planet explosions
+        # [2] Rocket, implosion
+        # [3] HUD
+        #
+        # FIXME Find a better name for this tree of drawables.
+        self.drawables = [[], [], [], []]
+        self.add_drawable(self.rocket)
+        self.add_drawable(self.life)
         
         pyxel.run(self.update, self.draw)
 
+    def add_drawable(self, drawable):
+        self.drawables[drawable.depth].append(drawable)
+
+    def remove_drawable(self, drawable):
+        self.drawables[drawable.depth].remove(drawable)
+
+    def remove_rocket(self):
+        self.remove_drawable(self.rocket)
+        self.rocket = None     
+
     def rocket_destroyed_by_planet(self, planet):
+        self.remove_rocket()
+        self.add_planet_explosion( PlanetExplosion(planet) )
 
-        self.planets.remove(planet)
-        self.rocket    = None
-        self.explosion = Explosion(planet.x, planet.y)
-
-    def rocket_destroyed_by_blackhole(self, blackhole):
-        
-        self.compression = Compression(blackhole.x, blackhole.y)
-        self.rocket    = None
-        
+    def rocket_implosion(self, blackhole):
+        self.remove_rocket()
+        blackhole.speed = 0
+        self.implosion  = Implosion(blackhole)
+        self.add_drawable(self.implosion)
+        self.remove_blackhole(blackhole)
 
     def update_blackholes(self):
-        
-        # Update existing blackholes and remove them if needed
         for blackhole in self.blackholes:
-            blackhole.update()
+            self.apply_blackhole_gravity(blackhole)    
             if not blackhole.is_visible():
-                self.blackholes.remove(blackhole)
-
-        # Generate new blackholes
+                self.remove_blackhole(blackhole)
+                
         if pyxel.frame_count % 200 == 0:
             blackhole = Blackhole()
-            self.blackholes.append(blackhole)
-
-        # Handle blackhole gravity field
+            self.add_blackhole(blackhole)
+            
+    def add_blackhole(self, blackhole):
+        self.add_drawable(blackhole)
+        self.blackholes.append(blackhole)
+        
+    def remove_blackhole(self, blackhole):
+        self.remove_drawable(blackhole)
+        self.blackholes.remove(blackhole)
+        
+    def apply_blackhole_gravity(self, blackhole):
         if self.rocket is None:
             return
         
         (rx, ry) = self.rocket.center()
-        for blackhole in self.blackholes:
-            (bx, by) = blackhole.center()
-            if bx > rx:
-                self.rocket.x = self.rocket.x + 1
-            elif bx < rx:
-                self.rocket.x = self.rocket.x - 1
-            if by > ry:
-                self.rocket.y = self.rocket.y + 1
-            elif by < ry:
-                self.rocket.y = self.rocket.y - 1
-            
-            if self.rocket is not None and blackhole.collide_with_rect(self.rocket):
-                self.rocket_destroyed_by_blackhole(blackhole)
+        (bx, by) = blackhole.center()
+        if bx > rx:
+            self.rocket.x = self.rocket.x + 1
+        elif bx < rx:
+            self.rocket.x = self.rocket.x - 1
+        if by > ry:
+            self.rocket.y = self.rocket.y + 1
+        elif by < ry:
+            self.rocket.y = self.rocket.y - 1
 
+        if blackhole.collide_with_drawable(self.rocket):
+            self.rocket_implosion(blackhole)
+            
+    def add_star(self, star):
+        self.add_drawable(star)
+        self.stars.append(star)
+
+    def remove_star(self, star):
+        self.remove_drawable(star)
+        self.stars.remove(star)
+
+    def update_stars(self):
+        for star in self.stars:
+            if not star.is_visible():
+                self.remove_star(star)
+        if pyxel.frame_count % 1 == 0:
+            star = Star()
+            self.add_star(star)
+
+    def update_implosion(self):
+        if self.implosion is None:
+            return
+        if self.implosion.is_done():
+            self.life.die_immediatly()
+
+    def add_planet(self, planet):
+        self.add_drawable(planet)
+        self.planets.append(planet)
+
+    def remove_planet(self, planet):
+        self.remove_drawable(planet)
+        self.planets.remove(planet)
+
+    def add_planet_explosion(self, planet_explosion):
+        self.add_drawable(planet_explosion)
+        self.planet_explosions.append(planet_explosion)
+
+    def remove_planet_explosion(self, planet_explosion):
+        self.remove_drawable(planet_explosion)
+        self.planet_explosions.remove(planet_explosion)
+
+    def update_planets(self):
+        for planet in self.planets:
+            if not planet.is_visible():
+                self.remove_planet(planet)
+                continue
+            
+            if self.rocket is not None and planet.collide_with_drawable(self.rocket):
+                    self.remove_planet(planet)
+                    self.life.dec()
+                    self.add_planet_explosion(PlanetExplosion(planet))
+                    if self.life.is_dead():
+                        self.rocket_destroyed_by_planet(planet)     
+        if pyxel.frame_count % 50 == 0:
+            planet = Planet()
+            self.add_planet(planet)
+
+        for planet_explosion in self.planet_explosions:
+            if planet_explosion.is_done():
+                self.remove_planet_explosion(planet_explosion)
+
+    def is_game_over(self):
+        if self.implosion is not None:
+            return self.implosion.is_done()
+        else:
+            return self.life.is_dead()
 
     def update(self):
-                  
         if pyxel.btnp(pyxel.KEY_Q):
             pyxel.quit()
 
-        if self.is_game_over:
-           return 
+        for depth in range(0, len(self.drawables)):
+            drawables = self.drawables[depth]
+            for drawable in drawables:
+                drawable.update()
+            
+        self.update_stars()
+        self.update_implosion()
+        self.update_planets()
+        if self.is_game_over():
+            return
 
         self.update_blackholes()
-
-        for star in self.stars:
-            star.update()
-            if not star.is_visible():
-                self.stars.remove(star)
-        if pyxel.frame_count % 3 == 0:
-            star = Star()
-            self.stars.append(star)
-
-        # Planets
+                
+    def draw_planet_collision_data(self):
+        col = 0
         for planet in self.planets:
-            planet.update()
-            
-            if not planet.is_visible():
-                self.planets.remove(planet)
-                continue
-            
-            if self.rocket is not None and planet.collide_with_rect(self.rocket):
-                self.rocket_destroyed_by_planet(planet)
-        if pyxel.frame_count % 50 == 0:
-            planet = Planet()
-            self.planets.append(planet)
+            if self.rocket is not None:
+                planet.drawCollisionData(self.rocket, 2+col)
+                col += 1
+                col %= 14
 
-        if self.rocket is not None:
-            self.rocket.update()
-
-        if self.explosion is not None:
-            self.explosion.update()
-            if self.explosion.is_done():
-                self.is_game_over = True
-
-        if self.compression is not None:
-            self.compression.update()
-            if self.compression.is_done():
-                self.is_game_over = True
+    def draw_game_over(self):
+        if self.is_game_over():
+            pyxel.text(pyxel.width / 2 - 30, pyxel.height / 2, "GAME OVER ! ", 7)
             
     def draw(self):
         pyxel.cls(0)
+        for drawables in self.drawables:
+            for drawable in drawables:
+                drawable.draw()
+        self.draw_planet_collision_data() # XXX
+        self.draw_game_over()      
 
-        for blackhole in self.blackholes:
-            blackhole.draw()
-
-        for star in self.stars:
-            star.draw()
-
-        for planet in self.planets:
-            planet.draw()
-            
-        if self.rocket is not None:
-            self.rocket.draw()
-
-
-        if self.explosion is not None:
-            self.explosion.draw()
-
-        if self.compression is not None:
-            self.compression.draw()
-
-        if self.is_game_over:
-            pyxel.text(pyxel.width / 2, pyxel.height / 2, "GAME OVER ! ", 1)
-
-
-
-
-
-                  
-  
 SpaceAdventure()
